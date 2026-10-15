@@ -6,7 +6,7 @@ public sealed class InvoiceFileWriter
 
     public InvoiceFileWriter(string folder) => _folder = folder;
 
-    public string WriteInvoice(Order order, CustomerProfile customer)
+    public async Task<string> WriteInvoiceAsync(Order order, CustomerProfile customer)
     {
         Directory.CreateDirectory(_folder);
         string path = Path.Combine(_folder, $"invoice-{order.Id}.txt");
@@ -21,8 +21,8 @@ public sealed class InvoiceFileWriter
             Total:      {order.Total:C}
             """;
 
-        Thread.Sleep(300);
-        File.WriteAllText(path, body);
+        await Task.Delay(300);
+         await File.WriteAllTextAsync(path, body);
         return path;
     }
 }
