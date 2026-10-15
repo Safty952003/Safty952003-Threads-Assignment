@@ -11,13 +11,13 @@ public sealed class OrderDatabase
         new(1005, 4, 150.00m, "Fattah Street"),
     ];
 
-    public async Task<List<Order>> GetPendingOrders()
+    public async Task<List<Order>> GetPendingOrdersAsync()
     {
         await Task.Delay(800);
         return _pending.ToList();
     }
 
-    public async Task<Order?> GetOrderById(int id)
+    public async Task<Order?> GetOrderByIdAsync(int id)
     {
         await Task.Delay(400);
         return _pending.FirstOrDefault(o => o.Id == id);
