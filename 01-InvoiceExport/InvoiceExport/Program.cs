@@ -14,8 +14,7 @@ Console.WriteLine("Starting invoice export...");
 Console.WriteLine($"Customer files: {dataDir}");
 Console.WriteLine($"Invoice output: {invoiceDir}");
 Console.WriteLine();
-
-export.ExportAllPending();
+await export.ExportAllPendingAsync();
 
 static void SeedCustomerFiles(string folder)
 {

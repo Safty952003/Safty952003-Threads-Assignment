@@ -15,7 +15,7 @@ public sealed class InvoiceExportService
         _invoices = invoices;
     }
 
-    public async Task ExportAllPending()
+    public async Task ExportAllPendingِAsync()
     {
         var watch = Stopwatch.StartNew();
         List<Order> orders = await _db.GetPendingOrdersAsync();
