@@ -1,3 +1,4 @@
+
 using System.Diagnostics;
 
 namespace InvoiceExport;
@@ -8,13 +9,15 @@ public sealed class InvoiceExportService
     readonly CustomerFileStore _customers;
     readonly InvoiceFileWriter _invoices;
 
-    public InvoiceExportService(OrderDatabase db, CustomerFileStore customers, InvoiceFileWriter invoices)
+    public InvoiceExportService(
+        OrderDatabase db,
+        CustomerFileStore customers,
+        InvoiceFileWriter invoices)
     {
         _db = db;
         _customers = customers;
         _invoices = invoices;
     }
-
 
     public async Task ExportAllPendingAsync()
     {
@@ -22,30 +25,36 @@ public sealed class InvoiceExportService
 
         List<Order> orders = await _db.GetPendingOrdersAsync();
 
-        var options = new ParallelOptions
+        // Start all order-export tasks first.
+        List<Task> exportTasks = new();
+
+        foreach (Order order in orders)
         {
-            MaxDegreeOfParallelism = 8
-        };
+            exportTasks.Add(ExportOrderAsync(order));
+        }
 
-        await Parallel.ForEachAsync(
-            orders,
-            options,
-            async (order, cancellationToken) =>
-            {
-                Order fresh = await _db.GetOrderByIdAsync(order.Id)
-                    ?? throw new InvalidOperationException(
-                        $"Order {order.Id} missing");
-
-                CustomerProfile customer =
-                    await _customers.ReadProfileAsync(fresh.CustomerId);
-
-                string path =
-                    await _invoices.WriteInvoiceAsync(fresh, customer);
-
-                Console.WriteLine($"Wrote {path}");
-            });
+        // Await each task individually.
+        foreach (Task exportTask in exportTasks)
+        {
+            await exportTask;
+        }
 
         Console.WriteLine(
             $"Export finished in {watch.Elapsed.TotalSeconds:F1} s");
+    }
+
+    private async Task ExportOrderAsync(Order order)
+    {
+        Order fresh = await _db.GetOrderByIdAsync(order.Id)
+            ?? throw new InvalidOperationException(
+                $"Order {order.Id} missing");
+
+        CustomerProfile customer =
+            await _customers.ReadProfileAsync(fresh.CustomerId);
+
+        string path =
+            await _invoices.WriteInvoiceAsync(fresh, customer);
+
+        Console.WriteLine($"Wrote {path}");
     }
 }
