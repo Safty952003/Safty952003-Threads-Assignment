@@ -11,15 +11,15 @@ public sealed class OrderDatabase
         new(1005, 4, 150.00m, "Fattah Street"),
     ];
 
-    public List<Order> GetPendingOrders()
+    public async Task<List<Order>> GetPendingOrders()
     {
-        Thread.Sleep(800);
+        await Task.Delay(800);
         return _pending.ToList();
     }
 
-    public Order? GetOrderById(int id)
+    public async Task<Order?> GetOrderById(int id)
     {
-        Thread.Sleep(400);
+        await Task.Delay(400);
         return _pending.FirstOrDefault(o => o.Id == id);
     }
 }
