@@ -15,21 +15,37 @@ public sealed class InvoiceExportService
         _invoices = invoices;
     }
 
-    public async Task ExportAllPendingِAsync()
+
+    public async Task ExportAllPendingAsync()
     {
         var watch = Stopwatch.StartNew();
+
         List<Order> orders = await _db.GetPendingOrdersAsync();
 
-        foreach (Order order in orders)
+        var options = new ParallelOptions
         {
-            Order fresh = await _db.GetOrderByIdAsync(order.Id)
-                ?? throw new InvalidOperationException($"Order {order.Id} missing");
+            MaxDegreeOfParallelism = 8
+        };
 
-            CustomerProfile customer = await _customers.ReadProfileAsync(fresh.CustomerId);
-            string path =await _invoices.WriteInvoiceAsync(fresh, customer);
-            Console.WriteLine($"Wrote {path}");
-        }
+        await Parallel.ForEachAsync(
+            orders,
+            options,
+            async (order, cancellationToken) =>
+            {
+                Order fresh = await _db.GetOrderByIdAsync(order.Id)
+                    ?? throw new InvalidOperationException(
+                        $"Order {order.Id} missing");
 
-        Console.WriteLine($"Export finished in {watch.Elapsed.TotalSeconds:F1} s");
+                CustomerProfile customer =
+                    await _customers.ReadProfileAsync(fresh.CustomerId);
+
+                string path =
+                    await _invoices.WriteInvoiceAsync(fresh, customer);
+
+                Console.WriteLine($"Wrote {path}");
+            });
+
+        Console.WriteLine(
+            $"Export finished in {watch.Elapsed.TotalSeconds:F1} s");
     }
 }
