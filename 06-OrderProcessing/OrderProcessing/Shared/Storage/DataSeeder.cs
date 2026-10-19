@@ -200,6 +200,7 @@ namespace OrderProcessing.Shared.Storage
             await _store.WriteAsync(
                 DataFiles.EmailRetry, new List<EmailMessage>(), cancellationToken);
             Console.WriteLine($"[Seeder] {DataFiles.EmailRetry} -> 0 records.");
+
         }
 
     }
