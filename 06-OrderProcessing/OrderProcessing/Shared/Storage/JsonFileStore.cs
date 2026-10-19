@@ -121,6 +121,83 @@ public class JsonFileStore
             fileLock.Release();
         }
     }
+    private static T CreateDefaultValue<T>()
+    {
+        if (typeof(T).IsGenericType &&
+            typeof(T).GetGenericTypeDefinition() == typeof(List<>))
+        {
+            return (T)Activator.CreateInstance(typeof(T))!;
+        }
+
+        return Activator.CreateInstance<T>();
+    }
+
+    public T Read<T>(string fileName)
+    {
+        string filePath = GetFilePath(fileName);
+
+        var fileLock = FileLocks.GetOrAdd(
+            filePath, _ => new SemaphoreSlim(1, 1));
+
+        fileLock.Wait();
+
+        try
+        {
+            if (!File.Exists(filePath))
+                return CreateDefaultValue<T>();
+
+            string json = File.ReadAllText(filePath);
+
+            try
+            {
+                return JsonSerializer.Deserialize<T>(
+                    json, JsonSerializerConfig.Options)
+                    ?? CreateDefaultValue<T>();
+            }
+            catch (JsonException ex)
+            {
+                throw new DataFileCorruptedException(fileName, ex);
+            }
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
+
+    public void Write<T>(string fileName, T data)
+    {
+        string filePath = GetFilePath(fileName);
+
+        var fileLock = FileLocks.GetOrAdd(
+            filePath, _ => new SemaphoreSlim(1, 1));
+
+        fileLock.Wait();
+
+        try
+        {
+            string json = JsonSerializer.Serialize(
+                data, JsonSerializerConfig.Options);
+
+            string tempFilePath =
+                filePath + $".{Guid.NewGuid():N}.tmp";
+
+            try
+            {
+                File.WriteAllText(tempFilePath, json);
+                File.Move(tempFilePath, filePath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempFilePath))
+                    File.Delete(tempFilePath);
+            }
+        }
+        finally
+        {
+            fileLock.Release();
+        }
+    }
 
 
 }
