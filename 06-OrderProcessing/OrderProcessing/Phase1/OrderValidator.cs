@@ -29,10 +29,14 @@ public class OrderValidator
         AppLogger.Log($"Validating Order #{order.Id}.");
 
         string? failureReason = null;
+        AppLogger.Log(
+    $"Before await - Thread ID: {Environment.CurrentManagedThreadId}");
 
         var customer = await _customerRepository.GetByIdAsync(
             order.CustomerId, cancellationToken);
 
+        AppLogger.Log(
+            $"After await - Thread ID: {Environment.CurrentManagedThreadId}");
         if (customer is null)
         {
             failureReason = $"Customer #{order.CustomerId} not found";
