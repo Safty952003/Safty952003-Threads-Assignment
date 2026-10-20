@@ -45,8 +45,11 @@ public class OrderValidator
         {
             failureReason = "Customer is inactive";
         }
+
         else
         {
+            var products = new List<Product>();
+
             foreach (var item in order.Items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -60,14 +63,28 @@ public class OrderValidator
                     break;
                 }
 
-                if (product.StockQuantity < item.Quantity)
+                products.Add(product);
+            }
+
+            if (failureReason is null)
+            {
+                for (int i = 0; i < order.Items.Count; i++)
                 {
-                    failureReason =
-                        $"Insufficient stock for '{product.Name}'";
-                    break;
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var item = order.Items[i];
+                    var product = products[i];
+
+                    if (product.StockQuantity < item.Quantity)
+                    {
+                        failureReason =
+                            $"Insufficient stock for '{product.Name}'";
+                        break;
+                    }
                 }
             }
         }
+
 
         if (failureReason is null && order.CouponCode is not null)
         {
