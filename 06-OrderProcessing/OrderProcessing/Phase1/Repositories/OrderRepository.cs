@@ -8,7 +8,7 @@ namespace OrderProcessing.Phase1.Repositories;
 public class OrderRepository
 {
     private readonly JsonFileStore _store;
-
+    private static readonly SemaphoreSlim _saveLock = new(1, 1);
     public OrderRepository(JsonFileStore store)
     {
         _store = store;
@@ -18,7 +18,11 @@ public class OrderRepository
         Order order,
         CancellationToken cancellationToken = default)
     {
-        AppLogger.Log(
+        await _saveLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            AppLogger.Log(
             $"[OrderRepository] Opening connection to save order #{order.Id}.");
 
         await Task.Delay(200, cancellationToken);
@@ -61,6 +65,11 @@ public class OrderRepository
 
         AppLogger.Log(
             $"[OrderRepository] Order #{order.Id} saved successfully.");
+        }
+        finally
+        {
+            _saveLock.Release();
+        }
     }
 
     public async Task<List<Order>> GetAllAsync(
