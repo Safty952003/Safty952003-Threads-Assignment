@@ -143,9 +143,8 @@ namespace OrderProcessing.Shared.Storage
     CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string dataDirectory = Path.Combine(
-                AppContext.BaseDirectory,
-                "Data");
+
+            string dataDirectory = _store.DataDirectory;
 
             if (Directory.Exists(dataDirectory))
             {
