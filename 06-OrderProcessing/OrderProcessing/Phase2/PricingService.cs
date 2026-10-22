@@ -14,15 +14,19 @@ public class PricingService
     private readonly IEnumerable<int> _failShippingForOrderIds;
 
     public PricingService(
-        JsonFileStore store,
-        CustomerRepository customerRepository,
-        CouponRepository couponRepository,
-        IEnumerable<int> failShippingForOrderIds)
+    JsonFileStore store,
+    CustomerRepository customerRepository,
+    CouponRepository couponRepository,
+    IEnumerable<int> failShippingForOrderIds,
+    bool enableFailureScenarios = true)
     {
         _store = store;
         _customerRepository = customerRepository;
         _couponRepository = couponRepository;
-        _failShippingForOrderIds = failShippingForOrderIds;
+
+        _failShippingForOrderIds = enableFailureScenarios
+            ? failShippingForOrderIds
+            : Array.Empty<int>();
     }
 
     public async Task<decimal> CalculateSubTotalAsync(
@@ -106,11 +110,21 @@ public class PricingService
                 order.CouponCode,
                 cancellationToken);
 
-            if (coupon is not null &&
-                coupon.ExpiryDate.Date >= DateTime.Today)
+
+            if (coupon is null)
             {
-                couponDiscount = coupon.DiscountPercent;
+                throw new InvalidCouponException(
+                    $"Coupon '{order.CouponCode}' does not exist");
             }
+
+            if (coupon.ExpiryDate.Date < DateTime.Today)
+            {
+                throw new InvalidCouponException(
+                    $"Coupon '{order.CouponCode}' has expired");
+            }
+
+            couponDiscount = coupon.DiscountPercent;
+
         }
 
         decimal discountPercent = Math.Min(
@@ -184,4 +198,32 @@ public class PricingService
             2,
             MidpointRounding.AwayFromZero);
     }
+
+
+
+    public async Task<decimal> CalculateTotalAsync(
+        Order order,
+        CancellationToken cancellationToken = default)
+    {
+        await CalculateSubTotalAsync(order, cancellationToken);
+
+        var discountTask = GetDiscountAsync(order, cancellationToken);
+        var shippingTask = CalculateShippingCostAsync(
+            order,
+            cancellationToken);
+
+        await discountTask;
+        await shippingTask;
+
+        order.Discount = await discountTask;
+        order.ShippingCost = await shippingTask;
+
+        order.TotalAmount = Math.Round(
+            order.SubTotal - order.Discount + order.ShippingCost,
+            2,
+            MidpointRounding.AwayFromZero);
+
+        return order.TotalAmount;
+    }
+
 }
