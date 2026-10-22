@@ -97,7 +97,6 @@ public class ProductRepository
             AppLogger.Log(
                 $"[ProductRepository] Committing stock reservation for product #{productId}.");
 
-            await Task.Delay(200, cancellationToken);
 
             AppLogger.Log(
                 $"[ProductRepository] Reserved {quantity} unit(s) of product #{productId}.");
