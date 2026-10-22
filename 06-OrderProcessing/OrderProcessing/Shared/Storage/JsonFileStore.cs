@@ -8,17 +8,23 @@ namespace OrderProcessing.Shared.Storage;
 
 public class JsonFileStore
 {
-    private static readonly string DataDirectory =
-        Path.Combine(AppContext.BaseDirectory, "Data");
+    private readonly string _dataDirectory;
+
+    public JsonFileStore(string? dataDirectory = null)
+    {
+        _dataDirectory = dataDirectory
+            ?? Path.Combine(AppContext.BaseDirectory, "Data");
+    }
+    public string DataDirectory => _dataDirectory;
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim>
         FileLocks = new();
 
-    private static string GetFilePath(string fileName)
+    private string GetFilePath(string fileName)
     {
-        Directory.CreateDirectory(DataDirectory);
+        Directory.CreateDirectory(_dataDirectory);
 
-        return Path.Combine(DataDirectory, fileName);
+        return Path.Combine(_dataDirectory, fileName);
     }
 
 
