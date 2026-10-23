@@ -11,13 +11,18 @@ public class EmailService : IEmailService
     private readonly JsonFileStore _store;
     private readonly Dictionary<int, int> _failAttempts;
     private readonly ConcurrentDictionary<int, int> _attemptCounts = new();
+    private static readonly SemaphoreSlim _emailFileLock = new(1, 1);
+    private readonly TimeSpan _sendDelay;
 
     public EmailService(
     JsonFileStore store,
     IDictionary<int, int>? failAttempts = null,
-    bool enableFailureScenarios = true)
+    bool enableFailureScenarios = true,
+    TimeSpan? sendDelay = null)
     {
         _store = store;
+
+        _sendDelay = sendDelay ?? TimeSpan.FromMilliseconds(300);
 
         _failAttempts = enableFailureScenarios && failAttempts is not null
             ? new Dictionary<int, int>(failAttempts)
@@ -30,7 +35,8 @@ public class EmailService : IEmailService
         Customer customer,
         CancellationToken cancellationToken = default)
     {
-        await Task.Delay(300, cancellationToken);
+        await Task.Delay(_sendDelay, cancellationToken);
+        
         int attempt = _attemptCounts.AddOrUpdate(
     order.Id,
     1,
@@ -43,27 +49,36 @@ public class EmailService : IEmailService
                 "SMTP server unavailable");
         }
 
-        var emails = await _store.ReadAsync<List<EmailMessage>>(
-            DataFiles.Emails,
-            cancellationToken);
+        await _emailFileLock.WaitAsync(cancellationToken);
 
-        emails.Add(new EmailMessage
+        try
         {
-            Id = Guid.NewGuid(),
-            OrderId = order.Id,
-            To = customer.Email,
-            Subject = $"Order #{order.Id} confirmation",
-            Body = $"Your order #{order.Id} has been completed. " +
-                   $"Total: {order.TotalAmount:F2}",
-            SentAt = DateTime.UtcNow,
-            Attempts = attempt,
-            LastError = null
-        });
+            var emails = await _store.ReadAsync<List<EmailMessage>>(
+                DataFiles.Emails,
+                cancellationToken);
 
-        await _store.WriteAsync(
-            DataFiles.Emails,
-            emails,
-            cancellationToken);
+            emails.Add(new EmailMessage
+            {
+                Id = Guid.NewGuid(),
+                OrderId = order.Id,
+                To = customer.Email,
+                Subject = $"Order #{order.Id} confirmation",
+                Body = $"Your order #{order.Id} has been completed. " +
+                       $"Total: {order.TotalAmount:F2}",
+                SentAt = DateTime.UtcNow,
+                Attempts = attempt,
+                LastError = null
+            });
+
+            await _store.WriteAsync(
+                DataFiles.Emails,
+                emails,
+                cancellationToken);
+        }
+        finally
+        {
+            _emailFileLock.Release();
+        }
     }
 
 }
