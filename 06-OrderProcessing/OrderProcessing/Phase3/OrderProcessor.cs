@@ -10,12 +10,27 @@ using OrderProcessing.Shared.Logging;
 using OrderProcessing.Shared.Models;
 using OrderProcessing.Shared.Storage;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace OrderProcessing.Phase3;
 
 public class OrderProcessor
 {
     private static int _stepIndex = 0;
+    private readonly ConcurrentDictionary<int, byte> _observedThreadIds = new();
+
+    public int ObservedThreadCount => _observedThreadIds.Count;
+
+    public void ResetObservedThreads()
+    {
+        _observedThreadIds.Clear();
+    }
+
+    private void RecordCurrentThread()
+    {
+        _observedThreadIds.TryAdd(
+            Environment.CurrentManagedThreadId, 0);
+    }
     private readonly CustomerService _customerService;
     private readonly InventoryService _inventoryService;
     private readonly PricingService _pricingService;
@@ -48,6 +63,8 @@ public class OrderProcessor
         Order order,
         CancellationToken cancellationToken = default)
     {
+        RecordCurrentThread();
+
         var totalStopwatch = Stopwatch.StartNew();
 
         bool stockReserved = false;
@@ -394,6 +411,8 @@ public class OrderProcessor
         int orderId,
         Func<Task<T>> operation)
     {
+        RecordCurrentThread();
+
         int stepIndex = Interlocked.Increment(ref _stepIndex);
         int threadId = Environment.CurrentManagedThreadId;
 
@@ -418,6 +437,8 @@ public class OrderProcessor
         }
         finally
         {
+            RecordCurrentThread();
+
             stopwatch.Stop();
 
             AppLogger.Log(
