@@ -48,8 +48,6 @@ public class Phase2Runner
     public async Task RunAsync(
         CancellationToken cancellationToken = default)
     {
-        var totalStopwatch = Stopwatch.StartNew();
-
         Console.WriteLine("\n========== PHASE 2 ==========\n");
 
         await _dataSeeder.ResetAsync(cancellationToken);
@@ -134,6 +132,11 @@ public class Phase2Runner
 
         Console.WriteLine("\n===== Concurrent Order Processing =====");
 
+        // Measure only the concurrent order-processing stage.
+        int threadPoolBefore = ThreadPool.ThreadCount;
+
+        var processingStopwatch = Stopwatch.StartNew();
+
         var processingTasks = validatedOrders
             .Select(order => (
                 Order: order,
@@ -177,10 +180,8 @@ public class Phase2Runner
                     $"Order #{order.Id} failed: {ex.Message}");
 
                 await _orderProcessor.ReleaseReservedStockAsync(
-    order.Id,
-    cancellationToken);
-
-                
+                    order.Id,
+                    cancellationToken);
 
                 order.Status = OrderStatus.Failed;
                 order.FailureReason = ex.Message;
@@ -191,6 +192,18 @@ public class Phase2Runner
             }
         }
 
+        processingStopwatch.Stop();
+
+        int threadPoolAfter = ThreadPool.ThreadCount;
+
+        Console.WriteLine("\n===== Processing Performance =====");
+
+        Console.WriteLine(
+            $"Order processing time: {processingStopwatch.Elapsed.TotalSeconds:F2} seconds");
+
+        Console.WriteLine(
+            $"ThreadPool.ThreadCount: {threadPoolBefore} -> {threadPoolAfter}");
+
         Console.WriteLine("\nFinal task statuses:");
 
         foreach (var entry in processingTasks)
@@ -198,11 +211,6 @@ public class Phase2Runner
             Console.WriteLine(
                 $"Order #{entry.Order.Id}: {entry.Task.Status}");
         }
-
-        totalStopwatch.Stop();
-
-        Console.WriteLine(
-            $"\nOrder processing time: {totalStopwatch.Elapsed.TotalSeconds:F2} seconds");
 
         var savedOrders = await _orderRepository.GetAllAsync(
             cancellationToken);
@@ -222,6 +230,7 @@ public class Phase2Runner
         Console.WriteLine($"Payment failed: {report.PaymentFailedCount}");
         Console.WriteLine($"Total revenue: {report.TotalRevenue:F2}");
         Console.WriteLine($"Average order value: {report.AverageOrderValue:F2}");
+
         Console.WriteLine(
             $"Top-selling product: {report.TopSellingProduct ?? "None"}");
 
@@ -237,12 +246,14 @@ public class Phase2Runner
         {
             Id = source.Id,
             CustomerId = source.CustomerId,
+
             Items = source.Items.Select(item => new OrderItem
             {
                 ProductId = item.ProductId,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice
             }).ToList(),
+
             CouponCode = source.CouponCode,
             SubTotal = source.SubTotal,
             Discount = source.Discount,
