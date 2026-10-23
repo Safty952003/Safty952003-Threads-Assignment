@@ -1,0 +1,7 @@
+﻿Invoice #8
+Customer ID: 8
+SubTotal: 1200.00
+Discount: 240.00
+Shipping Cost: 0.00
+Total Amount: 960.00
+Status: Validated

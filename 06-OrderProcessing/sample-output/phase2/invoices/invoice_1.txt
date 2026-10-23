@@ -1,0 +1,7 @@
+﻿Invoice #1
+Customer ID: 1
+SubTotal: 1225.00
+Discount: 245.00
+Shipping Cost: 0.00
+Total Amount: 980.00
+Status: Validated
