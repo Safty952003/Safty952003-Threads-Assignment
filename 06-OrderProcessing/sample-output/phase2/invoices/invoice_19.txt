@@ -1,0 +1,7 @@
+﻿Invoice #19
+Customer ID: 9
+SubTotal: 70.00
+Discount: 0.00
+Shipping Cost: 6.90
+Total Amount: 76.90
+Status: Validated

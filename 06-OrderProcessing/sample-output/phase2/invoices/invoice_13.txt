@@ -1,0 +1,7 @@
+﻿Invoice #13
+Customer ID: 3
+SubTotal: 300.00
+Discount: 0.00
+Shipping Cost: 9.20
+Total Amount: 309.20
+Status: Validated
